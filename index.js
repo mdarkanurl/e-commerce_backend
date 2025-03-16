@@ -11,6 +11,7 @@ const PORT = process.env.PORT || 5000;
 
 // Middlewares
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(morgan()); 
 app.use(helmet());

@@ -7,6 +7,7 @@ import { sendEmail } from '../config/sendEmail.js';
 import { verifyEmailTem } from '../utils/verifyEmailTem.js';
 import { generatedRefreshToken } from '../utils/genertedRefreshToken.js';
 import { generatedAccessToken } from '../utils/generatedAccessToken.js';
+import { uploadImageClodinary } from '../utils/uploadImageClodinary.js';
 
 export const singupUserController = async (req, res) => {
     try {
@@ -87,10 +88,11 @@ export const loginController = async (req, res) => {
 
         const user = await User.findOne({ email });
 
-        if(!user) {
+        if(!user || user.
+            verify_email === false) {
             return res.status(400).json({
                 success: false,
-                message: 'User doesn\'t exists, please login first'
+                message: 'User doesn\'t exists, please login first or verify your email'
             });
         }
 
@@ -114,6 +116,125 @@ export const loginController = async (req, res) => {
         res.cookie('refreshToken', refreshToken, { httpOnly: true });
 
         res.status(200).json({ success: true, message: 'Login successfully', data: { accessToken, refreshToken } });
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+export const logoutController = async (req, res) => {
+    try {
+        const userId = req.userId;
+
+        res.clearCookie("accessToken", { httpOnly: true });
+        res.clearCookie("refreshToken", { httpOnly: true });
+
+        const removeRefreshToken = await User.findByIdAndUpdate(userId, { 
+            refresh_token: "" });
+
+        res.status(200).json({ success: true, message: 'Logout successful' });
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+export const uploadAvatar = async (req, res) => {
+    try {
+        const userId = req.userId;
+        const image = req.file; // Multer middleware
+
+        const upload = await uploadImageClodinary(image);
+
+        await User.findByIdAndUpdate(userId, { avatar: upload.url });
+
+        res.status(200).json({
+            success: true,
+            message: 'Avatar uploaded',
+            data: { _id: userId, avatar: upload.url }
+        });
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+export const updateUserDetails = async (req, res) => {
+    try {
+        const userId = req.userId;
+        const { name, password, mobile } = req.body;
+
+        let hashPassword;
+        if(password) {
+            hashPassword = await bcrypt.hash(password, 10);
+        }
+
+
+        const updateUser = await User.updateOne({ _id: userId }, {
+            ...(name && { name: name }),
+            ...(password && { password: hashPassword }),
+            ...(mobile && { mobile: mobile })
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'updated user successful',
+            data: updateUser
+        });
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+export const forgotPasswordController = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        const user = await User.findOne({ email });
+
+        if(!user) {
+            return res.status(400).json({ 
+                success: false,
+                message: 'Invalid email'
+             })
+        }
+
+        const OTPCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+        await User.findByIdAndUpdate(user._id, { forgot_password_otp: OTPCode, forgot_password_expiry: (new Date(Date.now() + 5 * 60 * 1000)).toISOString()        });
+
+        await sendEmail({
+            email: email,
+            subject: 'Forgot password',
+            html: `Here's your OTP please user it eithin five min ${OTPCode}`
+        });
+
+        res.status(200).json({ success: true, message: 'Check your email' })
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+export const verifyForgotPasswordOTP = async (req, res) => {
+    try {
+        const { email, OTP } = req.body;
+
+        if(!email || !OTP) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email and OTP have be provided'
+            });
+        }
+
+        const user = await User.findOne({
+            email: email, 
+            forgot_password_otp: OTP,
+            forgot_password_expiry: { $gt: Date.now() }
+          });
+          
+
+        if(!user) {
+            return res.status(400).json({ success: false, message: 'Invalid email or OTP or OTP expired' });
+        }
+
+        res.status(200).json({ success: true, message: 'OTP verification done, now reset your password', 'reset-Url': 'http://localhost:3000/api/auth/reset-password' });
     } catch (error) {
         console.log(error);
     }
