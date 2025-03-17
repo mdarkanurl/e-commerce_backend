@@ -234,7 +234,38 @@ export const verifyForgotPasswordOTP = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid email or OTP or OTP expired' });
         }
 
+        user.is_OTP_Verify = true;
+        user.forgot_password_expiry = null;
+        user.forgot_password_otp = null;
+        await user.save();
+
         res.status(200).json({ success: true, message: 'OTP verification done, now reset your password', 'reset-Url': 'http://localhost:3000/api/auth/reset-password' });
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+export const resetPassword = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        if(!email || !password) {
+            return res.status(400).json({ success: false, message: 'Email and password have to provided' });
+        }
+
+        const user = await User.findOne({ email: email, is_OTP_Verify: true });
+
+        if(!user) {
+            return res.status(400).json({ success: false, message: 'Incorrect email or OTP is not verifyed' });
+        }
+
+        const hashPassword = await bcrypt.hash(password, 10);
+        user.password = hashPassword;
+        user.is_OTP_Verify = false;
+
+        await user.save();
+
+        res.status(200).json({ success: true, message: 'Your old password replace with your given password' });
     } catch (error) {
         console.log(error);
     }

@@ -60,6 +60,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: null
     },
+    is_OTP_Verify: {
+        type: Boolean,
+        default: false
+    },
     forgot_password_expiry: {
         type: Date,
         default: null
