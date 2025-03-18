@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 dotenv.config();
 import Joi from 'joi';
+import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js';
 import { sendEmail } from '../config/sendEmail.js';
 import { verifyEmailTem } from '../utils/verifyEmailTem.js';
@@ -268,5 +269,48 @@ export const resetPassword = async (req, res) => {
         res.status(200).json({ success: true, message: 'Your old password replace with your given password' });
     } catch (error) {
         console.log(error);
+    }
+}
+
+export const refreshToken = async (req, res) => {
+    try {
+        const refreshToken = req.cookies.refreshToken || req?.header?.authorization?.split(" ")[1];
+
+        if(!refreshToken) {
+            return res.status(402).json({ success: true, message: 'Unauthorized access, please login first' })
+        }
+
+        const verifyToken = await jwt.verify(refreshToken, process.env.SECRET_KEY_REFRESH_TOKEN);
+
+        if(!verifyToken) {
+            return res.status(401).json({ success: false, message: 'Token is expired' })
+        }
+
+        const userId = verifyToken?.id;
+
+        const newAccessToken = await generatedAccessToken(userId);
+
+        res.cookie('accessToken' , newAccessToken, { httpOnly: true });
+
+        return res.status(200).json({ success: true, message: 'New access token generated', accessToken: newAccessToken })
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+
+export const userDetails = async (req, res) => {
+    try {
+        const userId = req.userId;
+
+        const user = await User.findById(userId).select('-password -refresh_token');
+
+        if(!user) {
+            return res.status(400).json({ success: false, message: 'user not found' });
+        }
+
+        return res.status(200).json({ success: true, data: user });
+    } catch (error) {
+        console.log(error)
     }
 }

@@ -1,6 +1,6 @@
 import express from 'express';
 const router = express.Router();
-import { forgotPasswordController, loginController, logoutController, resetPassword, singupUserController, updateUserDetails, uploadAvatar, verifyEmailController, verifyForgotPasswordOTP } from "../controllers/user.controller.js";
+import { forgotPasswordController, loginController, logoutController, refreshToken, resetPassword, singupUserController, updateUserDetails, uploadAvatar, userDetails, verifyEmailController, verifyForgotPasswordOTP } from "../controllers/user.controller.js";
 import { auth } from '../middlewares/auth.js';
 import { upload } from '../middlewares/multer.js';
 
@@ -42,5 +42,13 @@ router.route('/verify-forgot-password')
 
 router.route('/reset-password')
     .put(resetPassword)
+
+
+router.route('/refresh-token')
+    .post(refreshToken)
+
+
+router.route('/user-details')
+    .get(auth, userDetails)
 
 export default router
